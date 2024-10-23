@@ -1,81 +1,73 @@
-// necesary cretes
-use sails_rs::{
-    prelude::*,
-    collections::HashMap,
-};
+// Imports necesarios
+use sails_rs::{prelude::*, collections::HashMap, ActorId};
 
-// static mut variable (contract's state)
+// Estado estático mutable
 pub static mut TRAFFIC_LIGHT_STATE: Option<TrafficLightState> = None;
 
-// Create a struct for the state
+// Estructura para el estado
 #[derive(Clone, Default)]
 pub struct TrafficLightState {
     pub current_light: String,
     pub all_users: HashMap<ActorId, String>,
+    pub some_value: u32, // Campo adicional para almacenar valores
 }
 
-// Impl to set methods or related functions in TrafficLightState
 impl TrafficLightState {
-    // Method to create a new instance of TrafficLightState
+    // Inicializa una nueva instancia del estado
     pub fn new() -> Self {
         Self {
             current_light: "".to_string(),
-            all_users: HashMap::new()
+            all_users: HashMap::new(),
+            some_value: 0,
         }
     }
 
-    // Related function to init the state of traffic light (call once)
+    // Inicializa el estado una vez
     pub fn init_state() {
         unsafe {
             TRAFFIC_LIGHT_STATE = Some(Self::new());
         };
     }
 
-    // Related function to get the state as mut
+    // Devuelve el estado como mutable
     pub fn state_mut() -> &'static mut TrafficLightState {
         let state = unsafe { TRAFFIC_LIGHT_STATE.as_mut() };
-        debug_assert!(state.is_some(), "The state is not initialized");
+        debug_assert!(state.is_some(), "El estado no está inicializado");
         unsafe { state.unwrap_unchecked() }
     }
 
-    // Related function to get the state as ref
+    // Devuelve el estado como referencia inmutable
     pub fn state_ref() -> &'static TrafficLightState {
         let state = unsafe { TRAFFIC_LIGHT_STATE.as_ref() };
-        debug_assert!(state.is_some(), "The state is not initialized");
+        debug_assert!(state.is_some(), "El estado no está inicializado");
         unsafe { state.unwrap_unchecked() }
     }
 }
 
-// Create a struct that can be send to the user who reads state
+// Estructura para enviar el estado al usuario
 #[derive(Encode, Decode, TypeInfo)]
 #[codec(crate = sails_rs::scale_codec)]
 #[scale_info(crate = sails_rs::scale_info)]
 pub struct IoTrafficLightState {
     pub current_light: String,
     pub all_users: Vec<(ActorId, String)>,
+    pub some_value: u32,
 }
 
-// Implementation of the From trait for converting CustomStruct to IoCustomStruct
 impl From<TrafficLightState> for IoTrafficLightState {
-
-    // Conversion method
     fn from(value: TrafficLightState) -> Self {
-        // Destructure the CustomStruct object into its individual fields
         let TrafficLightState {
             current_light,
             all_users,
+            some_value,
         } = value;
 
-        // Perform some transformation on second field, cloning its elements (Warning: Just for HashMaps!!)
-        let all_users = all_users
-            .iter()
-            .map(|(k, v)| (*k, v.clone()))
-            .collect();
-   
-        // Create a new IoCustomStruct object using the destructured fields
+        let all_users = all_users.iter().map(|(k, v)| (*k, v.clone())).collect();
+
         Self {
             current_light,
             all_users,
+            some_value,
         }
     }
 }

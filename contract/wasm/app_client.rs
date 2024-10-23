@@ -211,6 +211,9 @@ impl<R: Remoting + Clone> traits::TrafficLight for TrafficLight<R> {
     fn green(&mut self) -> impl Call<Output = TrafficLightEvent, Args = R::Args> {
         RemotingAction::<_, traffic_light::io::Green>::new(self.remoting.clone(), ())
     }
+    fn orange(&mut self) -> impl Call<Output = TrafficLightEvent, Args = R::Args> {
+        RemotingAction::<_, traffic_light::io::Orange>::new(self.remoting.clone(), ())
+    }
     fn red(&mut self) -> impl Call<Output = TrafficLightEvent, Args = R::Args> {
         RemotingAction::<_, traffic_light::io::Red>::new(self.remoting.clone(), ())
     }
@@ -239,6 +242,21 @@ pub mod traffic_light {
             const ROUTE: &'static [u8] = &[
                 48, 84, 114, 97, 102, 102, 105, 99, 76, 105, 103, 104, 116, 20, 71, 114, 101, 101,
                 110,
+            ];
+            type Params = ();
+            type Reply = super::TrafficLightEvent;
+        }
+        pub struct Orange(());
+        impl Orange {
+            #[allow(dead_code)]
+            pub fn encode_call() -> Vec<u8> {
+                <Orange as ActionIo>::encode_call(&())
+            }
+        }
+        impl ActionIo for Orange {
+            const ROUTE: &'static [u8] = &[
+                48, 84, 114, 97, 102, 102, 105, 99, 76, 105, 103, 104, 116, 24, 79, 114, 97, 110,
+                103, 101,
             ];
             type Params = ();
             type Reply = super::TrafficLightEvent;
@@ -330,6 +348,7 @@ pub enum TrafficLightEvent {
     Green,
     Yellow,
     Red,
+    Orange,
 }
 #[derive(PartialEq, Debug, Encode, Decode, TypeInfo)]
 #[codec(crate = sails_rs::scale_codec)]
@@ -337,6 +356,7 @@ pub enum TrafficLightEvent {
 pub struct IoTrafficLightState {
     pub current_light: String,
     pub all_users: Vec<(ActorId, String)>,
+    pub some_value: u32,
 }
 
 pub mod traits {
@@ -380,6 +400,7 @@ pub mod traits {
     pub trait TrafficLight {
         type Args;
         fn green(&mut self) -> impl Call<Output = TrafficLightEvent, Args = Self::Args>;
+        fn orange(&mut self) -> impl Call<Output = TrafficLightEvent, Args = Self::Args>;
         fn red(&mut self) -> impl Call<Output = TrafficLightEvent, Args = Self::Args>;
         fn yellow(&mut self) -> impl Call<Output = TrafficLightEvent, Args = Self::Args>;
         fn traffic_light(&self) -> impl Query<Output = IoTrafficLightState, Args = Self::Args>;

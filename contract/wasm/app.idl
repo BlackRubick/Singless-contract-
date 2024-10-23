@@ -28,11 +28,13 @@ type TrafficLightEvent = enum {
   Green,
   Yellow,
   Red,
+  Orange,
 };
 
 type IoTrafficLightState = struct {
   current_light: str,
   all_users: vec struct { actor_id, str },
+  some_value: u32,
 };
 
 constructor {
@@ -49,6 +51,7 @@ service Keyring {
 
 service TrafficLight {
   Green : () -> TrafficLightEvent;
+  Orange : () -> TrafficLightEvent;
   Red : () -> TrafficLightEvent;
   Yellow : () -> TrafficLightEvent;
   query TrafficLight : () -> IoTrafficLightState;

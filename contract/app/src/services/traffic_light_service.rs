@@ -1,120 +1,106 @@
-// necesary cretes
-use sails_rs::{
-    prelude::*,
-    gstd::msg
-};
+// Imports necesarios
+use sails_rs::{prelude::*, gstd::msg, ActorId};
+use crate::states::traffic_light_state::{TrafficLightState, IoTrafficLightState};
 
-// import the state
-use crate::states::traffic_light_state::{
-    TrafficLightState,
-    IoTrafficLightState
-};
+// Definir Balance como alias de u128
+type Balance = u128;
 
-
-// Traffic light service struct to build the service 
+// Estructura del servicio
 #[derive(Default)]
 pub struct TrafficLightService;
 
-// Impl for seed related function to init the state
 impl TrafficLightService {
-    // Related function to init the service state (call only once)
-    // Another related function is created that initializes the state 
-    // to avoid unnecessary imports in the "lib.rs" file, you can see 
-    // that it remains more "structured"
+    // Inicializa el estado del servicio
     pub fn seed() {
         TrafficLightState::init_state();
     }
 }
 
-// Trffic light service
 #[service]
 impl TrafficLightService {
-    // Service constructor
+    // Constructor del servicio
     pub fn new() -> Self {
         Self
     }
 
-    // Remote call "green" exposed to external consumers
-    // Returns a struct that will be sent as a response to the user
-    // Is treated as a command changing the state (&mut self)
+    // Método para cambiar la luz a verde y agregar fondos a la wallet del usuario
     pub fn green(&mut self) -> TrafficLightEvent {
-        // // Get state as mut
-        // let traffic_light_state = traffic_light_state_mut();
-
         let current_light = "Green".to_string();
+        let actor_id: ActorId = msg::source().into();
 
-        // Changing state
-        TrafficLightState::state_mut()
-            .current_light = current_light.clone();
-
+        // Actualizar el estado
+        TrafficLightState::state_mut().current_light = current_light.clone();
         TrafficLightState::state_mut()
             .all_users
-            .insert(msg::source().into(), current_light);
+            .insert(actor_id, current_light);
+        TrafficLightState::state_mut().some_value += 100;
 
-        // returning the response
+        // Agregar fondos a la wallet del usuario
+        let amount_to_send: Balance = 10_000_000_000; // Ajusta este valor según tu token
+        msg::send(
+            actor_id,
+            (),
+            amount_to_send,
+        )
+        .expect("Failed to send funds");
+
         TrafficLightEvent::Green
     }
 
-    // Remote call "yellow" exposed to external consumers
-    // Returns a struct that will be sent as a response to the user
-    // Is treated as a command changing the state (&mut self)
+    // Método para cambiar la luz a amarillo y descontar 1 unidad de la wallet del usuario
     pub fn yellow(&mut self) -> TrafficLightEvent {
-        // // Get state as mut
-        // let traffic_light_state = traffic_light_state_mut();
-
         let current_light = "Yellow".to_string();
+        let actor_id: ActorId = msg::source().into();
 
-        // Changing state
-        TrafficLightState::state_mut()
-            .current_light = current_light.clone();
+        // Verificar que el usuario adjuntó 1 unidad de valor
+        let expected_amount: Balance = 1_000_000_000; // Ajusta según tu token
+        let attached_value = msg::value();
+
+        if attached_value != expected_amount {
+            panic!("Debes adjuntar exactamente 1 unidad de valor al llamar a este método.");
+        }
+
+        // Actualizar el estado
+        TrafficLightState::state_mut().current_light = current_light.clone();
         TrafficLightState::state_mut()
             .all_users
-            .insert(msg::source().into(), current_light);
+            .insert(actor_id, current_light);
 
-        // returning the response
         TrafficLightEvent::Yellow
     }
 
-    // Remote call "yellow" exposed to external consumers
-    // Returns a struct that will be sent as a response to the user
-    // Is treated as a command changing the state (&mut self)
+    // Método para cambiar la luz a rojo y eliminar una publicación
     pub fn red(&mut self) -> TrafficLightEvent {
-        // // Get state as mut
-        // let traffic_light_state = traffic_light_state_mut();
-
         let current_light = "Red".to_string();
-
-        // Changing state
-        TrafficLightState::state_mut()
-            .current_light = current_light.clone();
-        TrafficLightState::state_mut()
-            .all_users
-            .insert(msg::source().into(), current_light);
-
-        // returning the response
+        TrafficLightState::state_mut().current_light = current_light.clone();
+        let actor_id: ActorId = msg::source().into();
+        TrafficLightState::state_mut().all_users.remove(&actor_id);
         TrafficLightEvent::Red
     }
 
-    // Remote call "traffic_light" exposed to external consumers
-    // Returns a struct that will be sent as a response to the user
-    // Is treated as a query, keeping everything unchanged and returning some data. (&self)
+    // Método para cambiar la luz a naranja y crear una publicación
+    pub fn orange(&mut self) -> TrafficLightEvent {
+        let current_light = "Orange".to_string();
+        TrafficLightState::state_mut().current_light = current_light.clone();
+        TrafficLightState::state_mut()
+            .all_users
+            .insert(msg::source().into(), current_light);
+        TrafficLightEvent::Orange
+    }
+
+    // Método para obtener el estado actual
     pub fn traffic_light(&self) -> IoTrafficLightState {
-        TrafficLightState::state_ref()
-            .to_owned()
-            .into()
+        TrafficLightState::state_ref().to_owned().into()
     }
 }
 
-// struct to use as a response to the user
+// Enum para los eventos del semáforo
 #[derive(Encode, Decode, TypeInfo)]
 #[codec(crate = sails_rs::scale_codec)]
 #[scale_info(crate = sails_rs::scale_info)]
-
 pub enum TrafficLightEvent {
     Green,
     Yellow,
-    Red
+    Red,
+    Orange,
 }
-
-
-
